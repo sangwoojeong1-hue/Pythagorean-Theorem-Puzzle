@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>피타고라스 퍼즐</title>
+<!-- 귀여운 글꼴(구글 폰트): 주아(제목·버튼), 개구(말풍선·본문). 인터넷이 없으면 기기 기본 글꼴로 보입니다. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Jua&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────────────────────────
+   화면 색 — 바꾸고 싶으면 이 :root 값만 고치면 됩니다.
+   (도형 색은 아래 <script> 설정 영역의 COLORS에서)
+   ─────────────────────────────────────────────── */
+:root{
+  --chat-bg:#b9d0e5;   /* 대화창 배경(하늘빛) */
+  --head:#a6c1da;      /* 대화창 위쪽 막대 */
+  --list-bg:#eef4fa;   /* 시작 화면 배경 */
+  --me:#ffe45c;        /* 학생 말풍선(노랑) */
+  --bot:#ffffff;       /* 직각이 말풍선 */
+  --ink:#1d2430;
+  --muted:#5f6b7a;
+  --line:#d9e2ec;
+  --accent:#2d6cdf;
+  --ok:#14804a;
+  --bad:#c2410c;
+  --marker:#ffd84d;    /* 형광펜 */
+  --angle:#e11d48;     /* 각 표시 */
+  --dock:#f7f9fb;      /* 아래 입력 영역 */
+  /* 글꼴 — 바꾸려면 위 <link>의 글꼴 이름과 이 두 줄을 함께 고칩니다 */
+  --font-body:"Gaegu","Apple SD Gothic Neo","Malgun Gothic",sans-serif;  /* 말풍선·본문 */
+  --font-head:"Jua","Apple SD Gothic Neo","Malgun Gothic",sans-serif;    /* 제목·버튼 */
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--list-bg);color:var(--ink);
+  font-family:var(--font-body);font-weight:700;
+  font-size:19px;line-height:1.5; /* 개구는 글자가 작아 보여서 조금 크게 */-webkit-text-size-adjust:100%;
+  touch-action:manipulation;
+}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+.ol{text-decoration:overline;text-decoration-thickness:1.5px} /* 선분 기호 AB̅ */
+/* 문자(a, b, c, x, y, h)는 교과서처럼 기울임 세리프 */
+i.v{font-family:"Times New Roman",Times,serif;font-style:italic;font-size:1.12em;font-weight:400;padding:0 .04em}
+sup{font-family:"Times New Roman",Times,serif;font-weight:400;font-size:.72em;line-height:0}
+.legend{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:2px 0}
+.chip{font-family:var(--font-head);font-size:13px;padding:1px 9px;border-radius:999px;color:#fff}
+.defs{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 10px;padding:4px 12px 8px;font-size:18px}
+.hidden{display:none!important}
+
+/* ── 시작 화면(채팅 목록 느낌) ── */
+.home{max-width:560px;margin:0 auto;padding-bottom:30px}
+.homehead{background:var(--head);padding:18px 16px 14px;display:flex;align-items:center;gap:12px}
+.homehead h1{margin:0;font-size:22px;letter-spacing:-.02em}
+.homehead p{margin:0;font-size:13px;color:#33475b}
+.figcard{background:#fff;margin:14px 16px 0;border-radius:16px;padding:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.figcard svg{display:block;width:100%;height:auto;max-height:260px}
+.modes{display:flex;background:#dbe6f1;border-radius:12px;padding:4px;margin:12px 16px}
+.modes button{flex:1;border:0;background:transparent;border-radius:9px;padding:10px;font-weight:700;color:var(--muted)}
+.modes button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.rooms{background:#fff;margin:0 16px;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.room{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;background:#fff;padding:14px;border-bottom:1px solid #eef2f6}
+.room:last-child{border-bottom:0}
+.room .av{flex:none}
+.room .tt{font-weight:800;font-size:16px}
+.room .pv{margin-top:3px;font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.room .mid{flex:1;min-width:0}
+.room .st{flex:none;font-size:13px;font-weight:800}
+.room.done .st{color:var(--ok)}
+.room.locked{opacity:.5}
+.badge{display:inline-block;background:#ff5a4f;color:#fff;border-radius:999px;font-size:12px;padding:1px 8px}
+.sumbtn{display:block;margin:14px 16px 0;width:calc(100% - 32px);border:0;background:var(--accent);color:#fff;font-weight:800;border-radius:14px;padding:14px}
+
+/* ── 직각이 프로필 ── */
+.av{width:40px;height:40px;border-radius:15px;background:#14b8a6;display:grid;place-items:center;overflow:hidden}
+.av svg{width:100%;height:100%}
+
+/* ── 대화 화면 ── */
+.chat{position:fixed;left:0;right:0;top:0;height:var(--app-h,100dvh);display:flex;flex-direction:column;background:var(--chat-bg)}
+.chathead{flex:none;background:var(--head);display:flex;align-items:center;gap:6px;padding:6px 8px;padding-top:calc(6px + env(safe-area-inset-top))}
+.chathead .back{border:0;background:transparent;font-size:24px;width:44px;height:44px;border-radius:10px}
+.chathead .t{flex:1;min-width:0;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chathead .p{font-size:13px;color:#33475b;font-weight:700;margin-right:4px}
+.chathead .figbtn{border:0;background:#ffffffaa;border-radius:10px;padding:8px 12px;font-weight:700;font-size:14px}
+.chatbody{flex:1;min-height:0;display:flex}
+.tvfig{display:none}
+.chatcol{flex:1;min-width:0;display:flex;flex-direction:column;max-width:640px;margin:0 auto;width:100%}
+.log{flex:1;min-height:0;overflow-y:auto;padding:12px 10px 16px;-webkit-overflow-scrolling:touch}
+
+.msg{display:flex;gap:8px;margin:4px 0;align-items:flex-start}
+.msg.me{justify-content:flex-end}
+.msg .avs{width:40px;flex:none}
+.msg .col{max-width:78%;min-width:0}
+.msg .name{font-size:13px;color:#33475b;margin:0 0 3px 2px}
+.bub{background:var(--bot);border-radius:4px 16px 16px 16px;padding:9px 12px;line-height:1.7;word-break:keep-all;overflow-wrap:anywhere;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+.msg.me .bub{background:var(--me);border-radius:16px 4px 16px 16px;white-space:pre-wrap}
+.msg.cont .bub{border-radius:16px}
+.bub.fig{padding:6px;width:270px;max-width:100%}
+.bub.fig svg{display:block;width:100%;height:auto}
+.bub.wide{width:min(320px,100%)}
+.bub .k{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:4px}
+.bub.model{background:#eef5ff;border:1px solid #cfe0fb}
+.bub.hint{background:#fff8dc;border:1px solid #f1dc8f}
+.bub.ok{background:#e9f7ee}
+.card ol{margin:0;padding-left:22px}
+.card li{padding:5px 0;border-bottom:1px dashed #e3e8ef}
+.card li:last-child{border-bottom:0}
+.card .ct{font-weight:800;margin-bottom:4px}
+.chk label{display:flex;gap:8px;align-items:flex-start;padding:6px 0;cursor:pointer}
+.chk input{width:22px;height:22px;flex:none;margin-top:1px;accent-color:var(--ok)}
+.typing{display:inline-flex;gap:4px;padding:12px 14px}
+.typing i{width:7px;height:7px;border-radius:50%;background:#9aa7b6;animation:tp 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes tp{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+
+/* ── 아래 입력 영역 ── */
+.dock{flex:none;background:var(--dock);border-top:1px solid #d6dee8;padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
+.dock.busy{opacity:.5;pointer-events:none}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{border:1.5px solid #c9d6e4;background:#fff;border-radius:999px;padding:10px 16px;font-size:17px;font-weight:600;min-height:46px}
+.opt.wrong{opacity:.4;text-decoration:line-through}
+.btns{display:flex;gap:8px;margin-top:8px}
+.btns:first-child{margin-top:0}
+.btn{flex:1;border:1px solid #c9d6e4;background:#fff;border-radius:12px;padding:11px 12px;font-weight:700;min-height:46px;font-size:15px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.sm{flex:none}
+.btn:disabled{opacity:.4}
+.preview{text-align:center;font-size:22px;padding:4px 0 8px}
+.box{display:inline-block;min-width:58px;border:2px dashed var(--accent);border-radius:10px;padding:0 8px;background:#f2f6ff;vertical-align:middle;line-height:1.5}
+.box.on{border-style:solid}
+.caret{display:inline-block;width:2px;height:1em;background:var(--accent);vertical-align:-.12em;animation:bl 1s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+.keys{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.key{border:0;background:#fff;border-radius:10px;height:46px;font-size:21px;font-weight:600;box-shadow:0 1px 0 #c3cbd6;font-family:"Times New Roman",serif}
+.key.lt{font-style:italic;font-size:24px}
+.key.fn{background:#dfe4ec;font-family:var(--font-head)}
+textarea{width:100%;border:1.5px solid #c9d6e4;border-radius:14px;padding:10px 12px;font:inherit;font-size:16px;resize:none;background:#fff;max-height:30vh;min-height:48px;display:block}
+
+/* ── 팝업 ── */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(20,24,32,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:18px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:18px}
+.modal h2{margin:0 0 8px;font-size:20px}
+.modal svg{display:block;width:100%;height:auto}
+.sum div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+.sum .f{font-weight:800;font-size:18px}
+.sum .s{font-size:13px;color:var(--muted)}
+
+/* ── 태블릿(개인 풀이): 학교에서 주로 태블릿을 쓰므로 화면을 넓게, 글씨·버튼을 크게 ── */
+@media (min-width:700px){
+  body:not(.tv){font-size:23px}
+  body:not(.tv) .home{max-width:780px}
+  body:not(.tv) .homehead h1{font-size:30px}
+  body:not(.tv) .figcard svg{max-height:340px}
+  body:not(.tv) .room .tt{font-size:21px}
+  body:not(.tv) .room .pv{font-size:19px}
+  body:not(.tv) .chatcol{max-width:820px}
+  body:not(.tv) .msg .col{max-width:74%}
+  body:not(.tv) .av,body:not(.tv) .msg .avs{width:48px;height:48px}
+  body:not(.tv) .msg .avs{height:auto}
+  body:not(.tv) .bub.fig{width:420px}
+  body:not(.tv) .bub.wide{width:min(460px,100%)}
+  body:not(.tv) .bub .k,body:not(.tv) .msg .name{font-size:16px}
+  body:not(.tv) .opt{font-size:23px;padding:12px 22px;min-height:56px}
+  body:not(.tv) .btn{font-size:20px;min-height:56px}
+  body:not(.tv) .preview{font-size:32px}
+  body:not(.tv) .key{height:58px;font-size:27px}
+  body:not(.tv) textarea{font-size:21px}
+  body:not(.tv) .chathead .t{font-size:22px}
+  body:not(.tv) .chathead .figbtn{font-size:17px;padding:10px 14px}
+}
+/* 가로 태블릿: 그림을 왼쪽에 고정(그림 말풍선 대신), 대화는 오른쪽 — TV 시연과 같은 배치 */
+@media (min-width:1000px) and (orientation:landscape){
+  body:not(.tv) .tvfig{display:flex;flex-direction:column;justify-content:center;flex:1;min-width:0;padding:16px}
+  body:not(.tv) .tvfig .in{background:#fff;border-radius:20px;padding:12px}
+  body:not(.tv) .tvfig svg{display:block;width:100%;height:auto;max-height:76vh}
+  body:not(.tv) .chatcol{flex:1;max-width:none;margin:0;border-left:1px solid #a9bfd4}
+  body:not(.tv) .chathead .figbtn{display:none}
+}
+
+/* ── TV 시연: 그림 왼쪽 크게, 대화 오른쪽 ── */
+body.tv{font-size:22px}
+body.tv .home{max-width:900px}
+body.tv .chathead .t{font-size:26px}
+body.tv .chathead .p{font-size:20px}
+body.tv .chathead .figbtn{display:none}
+body.tv .tvfig{display:flex;flex-direction:column;justify-content:center;flex:1.1;min-width:0;padding:16px}
+body.tv .tvfig .in{background:#fff;border-radius:20px;padding:14px}
+body.tv .tvfig svg{display:block;width:100%;height:auto;max-height:78vh}
+body.tv .chatcol{flex:1;max-width:none;margin:0;border-left:1px solid #a9bfd4}
+body.tv .msg .col{max-width:88%}
+body.tv .opt{font-size:26px;padding:12px 22px}
+body.tv .btn{font-size:22px;min-height:58px}
+body.tv .preview{font-size:34px}
+body.tv .key{height:58px;font-size:28px}
+body.tv .name{font-size:18px}
+body.tv .bub{font-size:25px}
+body.tv .bub .k{font-size:17px}
+body.tv .av{width:52px;height:52px}
+body.tv .msg .avs{width:52px}
+/* ── 글꼴: 제목·버튼·이름표는 주아(굵기 하나뿐이라 400으로), 본문·말풍선은 개구 ── */
+.homehead h1,.room .tt,.room .st,.chathead,.chathead *,.modes button,.sumbtn,.badge,.btn,.opt,.name,
+.bub .k,.card .ct,.modal h2,.sum .f,.preview{font-family:var(--font-head);font-weight:400}
+textarea{font-family:var(--font-body);font-weight:700;font-size:18px}
+.homehead p,.room .pv,.sum .s{font-size:16px}
+.bub .k,.msg .name{font-size:14px}
+body.tv .bub{font-size:30px} /* 개구는 작아 보여서 TV에서 더 크게 */
+svg text{font-weight:400} /* 그림 속 A, B, C는 교과서처럼 보통 굵기 */
+
+.n{font-family:var(--font-head);font-weight:400}
+.st-on{color:#f5b301}.st-off{color:#cbd5e1}
+
+/* ── 레벨 선택 화면 ── */
+.homehead .total{margin-left:auto;text-align:right;font-family:var(--font-head);font-size:16px;line-height:1.2}
+.homehead .total .tt{font-size:15px;color:#33475b}
+.opts2{display:flex;flex-direction:column;gap:8px;margin:14px 16px 0}
+.seg{display:flex;align-items:center;gap:6px;background:#dbe6f1;border-radius:12px;padding:4px 4px 4px 12px}
+.seg span{font-family:var(--font-head);color:var(--muted);min-width:5.5em;font-size:15px}
+.seg button{flex:1;border:0;background:transparent;border-radius:9px;padding:10px 6px;color:var(--muted);font-family:var(--font-head)}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.modehelp{margin:8px 18px 0;font-size:16px;color:#33475b}
+.modehelp b{font-family:var(--font-head);font-weight:400;color:var(--accent)}
+.lvlist{display:grid;grid-template-columns:1fr;gap:10px;margin:14px 16px 0}
+.lvcard{display:flex;gap:12px;align-items:center;border:0;background:#fff;border-radius:16px;padding:10px;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.lvcard.locked{opacity:.55}
+.lvcard.done{outline:3px solid #fde68a}
+.lvthumb{flex:none;width:104px;pointer-events:none}
+.lvthumb svg{display:block;width:100%;height:auto}
+.lvinfo{flex:1;min-width:0}
+.lvt{font-family:var(--font-head);color:var(--accent);font-size:15px}
+.lvn{font-family:var(--font-head);font-size:21px}
+.lvs{font-size:26px;letter-spacing:2px;font-family:var(--font-head)}
+.lvcard.locked .lvs{font-size:15px;letter-spacing:0;color:var(--muted)}
+.certbtn{display:block;width:calc(100% - 32px);margin:16px 16px 0;border:0;border-radius:14px;padding:15px;font-family:var(--font-head);font-size:18px;background:#e2e8f0;color:#475569}
+.certbtn.ready{background:linear-gradient(90deg,#f59e0b,#ef4444);color:#fff;animation:pulse 1.6s infinite}
+@keyframes pulse{50%{transform:scale(1.02)}}
+.home .note{margin:10px 18px 0;font-size:14px;color:var(--muted)}
+
+/* ── 게임 화면 ── */
+.game{position:fixed;left:0;right:0;top:0;height:var(--app-h,100dvh);display:flex;flex-direction:column;background:#fff}
+.ghead{flex:none;background:var(--head);display:flex;align-items:center;gap:6px;padding:6px 8px;padding-top:calc(6px + env(safe-area-inset-top));font-family:var(--font-head)}
+.ghead .back{border:0;background:transparent;font-size:24px;width:44px;height:44px;border-radius:10px}
+.ghead .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:18px}
+.ghead .tag{font-size:12px;background:#ef4444;color:#fff;border-radius:999px;padding:1px 8px;vertical-align:2px}
+.gstars{font-size:22px;letter-spacing:1px}
+.gbtn{border:0;background:#ffffffcc;border-radius:10px;padding:9px 11px;font-family:var(--font-head);font-size:15px;white-space:nowrap}
+.gbtn.pri{background:var(--accent);color:#fff}
+.board{flex:1;min-height:0;position:relative;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.board svg{display:block;width:100%;height:100%;touch-action:none}
+.gfoot{flex:none;display:flex;align-items:center;gap:12px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));font-family:var(--font-head);background:var(--dock);border-top:1px solid #e2e8f0}
+.gfoot b{font-size:1.2em}
+.bar{flex:1;height:12px;background:#dfe6ee;border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .25s}
+.piece{cursor:grab}
+.piece.drag{cursor:grabbing}
+.piece.drag polygon{opacity:.85}
+.board.solved .piece{cursor:default}
+/* '직접 돌리기'에서 고른 조각 */
+.piece.sel polygon{stroke:#1d2430;stroke-width:4px;vector-effect:non-scaling-stroke;stroke-dasharray:7 4;animation:selmarch .8s linear infinite}
+@keyframes selmarch{to{stroke-dashoffset:-22}}
+@media (max-width:520px){.gfoot:has(.rotbar) .bar{display:none}}
+.rotbar{display:flex;gap:8px;flex:none}
+.rb{border:0;border-radius:14px;background:var(--accent);color:#fff;font-family:var(--font-head);font-size:28px;min-width:64px;height:56px;padding:0 14px}
+.rb.fl{font-size:19px;background:#8b5cf6}
+.rb:disabled{background:#cbd5e1;color:#fff}
+.flash{animation:flash .65s ease-in-out 4}
+@keyframes flash{0%,100%{opacity:.15}50%{opacity:.85}}
+.nudge polygon{animation:nudge .65s ease-in-out 4}
+@keyframes nudge{0%,100%{stroke:#fff}50%{stroke:#1d2430}}
+
+/* 시작 목표 / 클리어 창 */
+.goal,.clear{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.35);z-index:20}
+.clear{align-items:flex-end;background:rgba(15,23,42,.15)}
+.gbox,.cbox{background:#fff;border-radius:20px;padding:20px;max-width:520px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25);text-align:center}
+/* 목표 카드 바깥은 손가락이 통과해 바로 조각을 잡을 수 있게(잡는 순간 카드가 사라짐) */
+.board>.goal{pointer-events:none}
+.board>.goal .gbox{pointer-events:auto}
+.gbox .gl{font-family:var(--font-head);font-size:26px;color:var(--accent)}
+.gbox p{margin:10px 0}
+.gbox .gsub{font-size:16px;color:var(--muted)}
+.gbox .btn{width:100%;margin-top:8px;font-size:20px}
+.ctitle{font-family:var(--font-head);font-size:26px}
+.cstars{margin:4px 0 8px}
+.cs{display:inline-block;font-size:46px;color:#cbd5e1;transform:scale(.3);animation:pop .45s forwards}
+.cs.on{color:#f5b301}
+@keyframes pop{to{transform:scale(1)}}
+.tvnote{font-family:var(--font-head);color:var(--muted)}
+.qq{margin:6px 0}
+.qt{font-size:28px;margin:6px 0 10px;font-family:var(--font-head)}
+.qbox{display:inline-block;min-width:56px;border:2px dashed var(--accent);border-radius:10px;padding:0 8px;margin:0 4px;background:#f2f6ff;color:var(--accent)}
+.qbox.ok{border-style:solid;border-color:var(--ok);background:#e9f7ee;color:var(--ok)}
+.qopts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.qopt{min-width:84px;border:2px solid #c9d6e4;background:#fff;border-radius:14px;padding:10px 16px;font-size:24px;font-family:var(--font-head)}
+.qopt.ok{border-color:var(--ok);background:#e9f7ee}
+.qopt.no{opacity:.45}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.cformula{font-size:32px;font-family:var(--font-head);margin:6px 0}
+.cmsg{margin:2px 0 6px;color:var(--muted);font-size:16px}
+.cbox .btns{flex-wrap:wrap}
+
+/* 달성 화면 */
+.nm{width:100%;font:inherit;font-size:20px;padding:10px 12px;border:2px solid #c9d6e4;border-radius:12px;margin:6px 0 4px}
+.cert{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:radial-gradient(circle at 30% 20%,#fde68a,#f59e0b 45%,#ea580c);}
+.certcard{background:#fff;border-radius:24px;padding:24px 22px;max-width:520px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.cbadge{font-size:64px;line-height:1;animation:spin 3s linear infinite}
+@keyframes spin{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+.cname{font-family:var(--font-head);font-size:34px;margin-top:6px}
+.cdesc{font-family:var(--font-head);color:var(--muted);font-size:18px}
+.creward{display:inline-block;margin:10px 0;font-family:var(--font-head);font-size:30px;color:#fff;background:#ef4444;border-radius:999px;padding:4px 22px}
+.crows{text-align:left;margin:8px 0}
+.crow{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed #e2e8f0;padding:6px 0;font-family:var(--font-head);font-size:16px}
+.crow small{color:var(--muted);font-size:12px}
+.clock{font-family:var(--font-head);font-size:24px;letter-spacing:1px;background:#0f172a;color:#facc15;border-radius:12px;padding:8px;margin:10px 0 4px}
+.cnote{font-size:14px;color:var(--muted);margin:4px 0 10px}
+.certcard .btn{width:100%}
+
+/* 태블릿: 크게 */
+@media (min-width:700px){
+  .lvlist{grid-template-columns:repeat(2,1fr)}
+  .lvcard{flex-direction:column;align-items:stretch;text-align:center}
+  .lvthumb{width:100%}
+  .home{max-width:900px}
+  .ghead .t{font-size:22px}
+  .gbtn{font-size:18px;padding:11px 14px}
+  .gstars{font-size:28px}
+  .gfoot{font-size:22px}
+  .seg span{font-size:17px}
+  .seg button{font-size:19px}
+}
+@media (min-width:1000px){.lvlist{grid-template-columns:repeat(4,1fr)}}
+body.tv .ghead .t{font-size:26px}
+body.tv .gbtn{font-size:20px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* =====================================================================
+   설정 영역 — 선생님이 직접 고치는 곳
+   ---------------------------------------------------------------------
+   · SNAP : 조각을 빈자리에서 이 정도(조각 크기에 대한 비율) 안에 놓으면 맞춤
+            (0.5 = 조각 크기의 절반쯤. 크게 하면 대충 놓아도 맞고, 작게 하면 정확히 놓아야 함)
+   · ROT_STEP : ↺ ↻ 버튼을 한 번 누를 때 도는 각도
+   · ROT_TOL : 방향이 이 각도 안으로 맞으면 맞은 것으로 봄
+              (45°씩 돌리고 23°까지 봐주면, 학생은 8가지 방향 중 하나를 고르기만 하면 됨.
+               정사각형 조각은 방향과 관계없이 맞음)
+   · STARS : 힌트를 쓴 횟수에 따른 별 개수 (0번 → 3개, 1번 → 2개, 2번 이상 → 1개)
+   · COLORS : 조각 색 — a: 왼쪽 정사각형(a²) 조각들, b: 오른쪽 정사각형(b²) 조각들
+              (레벨에 colors를 따로 적으면 그 레벨만 그 색)
+   · LEVELS : 레벨별 내용
+       kind : 'grid'(칸 세기) / 'perigal'(페리갈) / 'liuhui'(유휘의 출입상보) / 'pinwheel'(바람개비)
+       a, b : 직각삼각형의 두 짧은 변 — a는 왼쪽, b는 오른쪽
+              ('grid'·'perigal'·'liuhui'는 a < b, 'pinwheel'은 a > b. 'grid'는 빗변도 정수: 3·4·5, 6·8·10 …)
+       sides : 삼각형 변에 적을 글자 / squares : 정사각형 자리 안에 적을 글자
+       goal : 레벨을 시작할 때 보여 줄 목표
+       quiz : 다 채운 뒤 식 완성 문제 — template의 □ 자리 정답을 options 중에서 고름(answer: 0부터 셈)
+       formula : 클리어 카드에 크게 보여 줄 식
+   ※ 글 속의 소문자 a, b, c는 기울임 수학 문자로, ²는 위 첨자로 자동으로 바뀝니다.
+   ===================================================================== */
+const SNAP = 0.5;
+const ROT_STEP = 45;     // 도
+const ROT_TOL = 23;      // 도 (45°의 절반보다 커야 어떤 방향이든 맞출 수 있음)
+const STARS = hintsUsed => hintsUsed === 0 ? 3 : hintsUsed === 1 ? 2 : 1;
+
+const COLORS = {
+  a: ['#facc15', '#fb923c'],                       // a² 조각: 노랑, 주황
+  b: ['#ef4444', '#22c55e', '#3b82f6', '#a855f7'], // b² 조각: 빨강, 초록, 파랑, 보라
+  gridA: '#facc15', gridB: '#ef4444',              // 레벨 1: 노란 칸, 빨간 칸
+};
+
+const LEVELS = [
+  { title: '레벨 1', name: '칸 세기',
+    kind: 'grid', a: 3, b: 4,
+    sides: { a: '3', b: '4', c: '5' }, squares: ['a²', 'b²', 'c²'],
+    goal: '노란 칸과 빨간 칸을 모두 옮겨 빗변 아래 큰 정사각형을 채워라! 손가락 여러 개로 한꺼번에 옮겨도 돼.',
+    quiz: [
+      { q: '노란 칸 9개, 빨간 칸 16개! 큰 정사각형은 몇 칸?', template: '9 + 16 = □', options: ['25', '20', '21'], answer: 0 },
+      { q: '넓이를 변의 길이로 나타내면?', template: '3² + 4² = □²', options: ['5', '7', '25'], answer: 0 },
+    ],
+    formula: '3² + 4² = 5²' },
+  { title: '레벨 2', name: '페리갈의 퍼즐',
+    kind: 'perigal', a: 2, b: 3,
+    sides: { a: 'a', b: 'b', c: 'c' }, squares: ['a²', 'b²', 'c²'],
+    goal: '이번엔 칸이 없어! a² 한 조각과 b²의 네 조각으로 c²를 채워라!',
+    quiz: [
+      { q: '채운 조각의 넓이를 식으로 나타내면?', template: 'a² + b² = □', options: ['c²', 'c', '2c'], answer: 0 },
+      { q: 'a = 2, b = 3이면 c²는?', template: 'c² = 4 + 9 = □', options: ['13', '25', '5'], answer: 0 },
+    ],
+    formula: 'a² + b² = c²' },
+  { title: '레벨 3', name: '유휘의 출입상보',
+    kind: 'liuhui', a: 2, b: 3,
+    sides: { a: 'a', b: 'b', c: 'c' }, squares: ['a²', 'b²', 'c²'],
+    goal: '또 다르게 잘랐어! a²의 두 조각과 b²의 세 조각으로 c²를 채워라!',
+    quiz: [
+      { q: '자르는 방법이 달라도 성립하는 식은?', template: '□ + b² = c²', options: ['a²', 'a', 'b²'], answer: 0 },
+    ],
+    formula: 'a² + b² = c²' },
+  { title: '레벨 4', name: '바람개비 퍼즐',
+    kind: 'pinwheel', a: 4, b: 3,
+    sides: { a: 'a', b: 'b', c: 'c' }, squares: ['a²', 'b²', 'c²'],
+    colors: { a: ['#5ec4c1'], b: ['#e879a6'] }, // 교과서 그림처럼 청록·분홍
+    goal: '조각이 7개! 큰 정사각형(a²)의 다섯 조각과 작은 정사각형(b²)의 두 조각으로 c²를 채워라! 뒤집어야 맞는 조각도 있어.',
+    quiz: [
+      { q: '채운 조각의 넓이를 식으로 나타내면?', template: 'a² + b² = □', options: ['c²', '2ab', 'c'], answer: 0 },
+      { q: 'a = 4, b = 3이면 c²는?', template: 'c² = 16 + 9 = □', options: ['25', '49', '7'], answer: 0 },
+    ],
+    formula: 'a² + b² = c²' },
+];
+
+/* ===================== 설정 영역 끝 ===================== */
+
+
+/* ---------- 상태 ----------
+   저장하지 않는 앱이라 모든 것이 여기에만 있습니다(새로고침하면 별도 사라짐). */
+const state = {
+  view: 'solo',        // 'solo' 개인 | 'tv' TV 시연
+  rotate: 'manual',    // 조각은 학생이 ↺ ↻ 버튼으로 직접 돌림 (자동 회전 모드는 2026-10-26에 없앰)
+  best: {},            // 레벨별 최고 기록 { stars, rotate }
+  lv: null, pz: null, hints: 0,
+};
+const app = document.getElementById('app');
+const isTV = () => state.view === 'tv';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const DEG = Math.PI / 180;
+
+/* ---------- 글자 표시 ----------
+   소문자 a,b,c,x,y,h → 기울임 수학 문자, ² → 위 첨자.
+   한 글자씩 처리하는 이유: HTML 특수문자(&amp; 등)의 영문자를 잘못 바꾸지 않기 위해 */
+function fmt(t) {
+  let o = '';
+  // ' : '가 줄 끝에서 끊기지 않게 붙는 공백으로
+  const s = [...String(t).replace(/ : /g, '\u00a0:\u00a0')];
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    // 두 글자 선분 이름(AB, BD …)에는 선분 기호(윗줄)를 붙인다.
+    // △ABC·∠BAC처럼 더 긴 이름이나 'AA 닮음'의 AA는 건드리지 않는다.
+    const pair = ch + (s[i + 1] || '');
+    if (/^[A-D]{2}$/.test(pair) && pair !== 'AA' && !/[A-Z]/.test(s[i + 2] || '') && !/[A-Z△∠]/.test(s[i - 1] || '')) {
+      o += `<span class="ol">${pair}</span>`; i++; continue;
+    }
+    if (/[0-9]/.test(ch)) o += `<span class="n">${ch}</span>`; // 개구 글꼴의 1이 l처럼 보여서 숫자는 주아로
+    else if ('abcxyh'.includes(ch)) o += `<i class="v">${ch}</i>`;
+    else if (ch === '²') o += '<sup>2</sup>';
+    else if (ch === '<') o += '&lt;';
+    else if (ch === '>') o += '&gt;';
+    else if (ch === '&') o += '&amp;';
+    else if (ch === '"') o += '&quot;';
+    else o += ch;
+  }
+  return o;
+}
+function esc(t) {
+  return String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+/* ---------- 퍼즐 계산 ----------
+   좌표는 화면(SVG)처럼 오른쪽이 +x, 아래쪽이 +y.
+   빗변을 (0,0)~(c,0)에 가로로 놓고, 직각인 꼭짓점은 위쪽, c² 정사각형은 빗변 아래에 둔다.
+   조각은 손으로 그리지 않고 a, b로부터 계산한다 — 손으로 그리면 미세한 틈·겹침이 생겨
+   "빈틈없이 꼭 맞는다"는 관찰을 해치기 때문. */
+const V2 = {
+  add: (p, q) => [p[0] + q[0], p[1] + q[1]],
+  sub: (p, q) => [p[0] - q[0], p[1] - q[1]],
+  mul: (p, k) => [p[0] * k, p[1] * k],
+  rot90: p => [-p[1], p[0]],
+  rot: (p, t) => [p[0] * Math.cos(t) - p[1] * Math.sin(t), p[0] * Math.sin(t) + p[1] * Math.cos(t)],
+  len: p => Math.hypot(p[0], p[1]),
+};
+function polyArea(P) { // 부호 있는 넓이
+  let s = 0;
+  for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; s += p[0] * q[1] - q[0] * p[1]; }
+  return s / 2;
+}
+function centroid(P) {
+  let A = 0, cx = 0, cy = 0;
+  for (let i = 0; i < P.length; i++) {
+    const p = P[i], q = P[(i + 1) % P.length], k = p[0] * q[1] - q[0] * p[1];
+    A += k; cx += (p[0] + q[0]) * k; cy += (p[1] + q[1]) * k;
+  }
+  return [cx / (3 * A), cy / (3 * A)];
+}
+function orient(P) { return polyArea(P) < 0 ? [...P].reverse() : P; } // 모든 다각형을 같은 방향으로
+function dedupe(P) {
+  const out = [];
+  for (const p of P) { const q = out[out.length - 1]; if (!q || V2.len(V2.sub(p, q)) > 1e-9) out.push(p); }
+  if (out.length > 1 && V2.len(V2.sub(out[0], out[out.length - 1])) < 1e-9) out.pop();
+  return out;
+}
+// 반평면 n·x ≥ d 로 자르기(볼록 다각형)
+function clipHalf(P, n, d) {
+  const out = [], f = p => n[0] * p[0] + n[1] * p[1] - d;
+  for (let i = 0; i < P.length; i++) {
+    const p = P[i], q = P[(i + 1) % P.length], fp = f(p), fq = f(q);
+    if (fp >= -1e-12) out.push(p);
+    if ((fp >= -1e-12) !== (fq >= -1e-12)) { const t = fp / (fp - fq); out.push(V2.add(p, V2.mul(V2.sub(q, p), t))); }
+  }
+  return dedupe(out);
+}
+// 정사각형 틀: 원점 O, 한 변 방향 e1(단위), e2 = e1을 90° 돌린 것 → (u,v)를 화면 좌표로
+function frame(O, e1) { const e2 = V2.rot90(e1); return (u, v) => [O[0] + u * e1[0] + v * e2[0], O[1] + u * e1[1] + v * e2[1]]; }
+function squarePoly(F, s) { return [F(0, 0), F(s, 0), F(s, s), F(0, s)]; }
+
+function boardGeometry(a, b) {
+  const c = Math.hypot(a, b);
+  const P0 = [0, 0], P1 = [c, 0], R = [a * a / c, -a * b / c];
+  const Fa = frame(R, V2.mul(V2.sub(P0, R), 1 / a));  // 짧은 변 위 정사각형(바깥쪽)
+  const Fb = frame(P1, V2.mul(V2.sub(R, P1), 1 / b)); // 긴 변 위 정사각형(바깥쪽)
+  const Fc = frame(P0, [1, 0]);                         // 빗변 아래 정사각형
+  return { a, b, c, P0, P1, R, Fa, Fb, Fc, sqA: squarePoly(Fa, a), sqB: squarePoly(Fb, b), sqC: squarePoly(Fc, c) };
+}
+
+/* 조각 = { from:'a'|'b', start:[...], target:[...] } (화면 좌표) */
+function buildGrid(G) { // 퍼즐 A: 한 칸짜리 정사각형
+  const pieces = [];
+  const cells = (F, n) => { const out = []; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) out.push([F(i, j), F(i + 1, j), F(i + 1, j + 1), F(i, j + 1)]); return out; };
+  const ca = cells(G.Fa, G.a), cb = cells(G.Fb, G.b), cc = cells(G.Fc, Math.round(G.c));
+  // 도착 자리: 노란 조각은 왼쪽 아래 a×a, 빨간 조각은 나머지 (사진 A처럼)
+  const n = Math.round(G.c), slotsA = [], slotsB = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const cell = [G.Fc(i, j), G.Fc(i + 1, j), G.Fc(i + 1, j + 1), G.Fc(i, j + 1)];
+    (i < G.a && j >= n - G.a ? slotsA : slotsB).push(cell);
+  }
+  ca.forEach((s, k) => pieces.push({ from: 'a', start: s, target: slotsA[k] }));
+  cb.forEach((s, k) => pieces.push({ from: 'b', start: s, target: slotsB[k] }));
+  return pieces;
+}
+function buildPerigal(G) { // 퍼즐 B: b²를 중심을 지나 빗변에 평행·수직인 선으로 4조각, a²는 통째로
+  const O = centroid(G.sqB), pieces = [];
+  for (const sx of [1, -1]) for (const sy of [1, -1]) {
+    let P = clipHalf(G.sqB, [sx, 0], sx * O[0]);
+    P = clipHalf(P, [0, sy], sy * O[1]);
+    const corner = [sx > 0 ? 0 : G.c, sy > 0 ? 0 : G.c]; // 직각인 꼭짓점(O)이 c²의 모서리로
+    const d = V2.sub(corner, O);
+    pieces.push({ from: 'b', start: P, target: P.map(p => V2.add(p, d)) });
+  }
+  const ca = centroid(G.sqA), d = V2.sub([G.c / 2, G.c / 2], ca);
+  pieces.unshift({ from: 'a', start: G.sqA, target: G.sqA.map(p => V2.add(p, d)) });
+  return pieces;
+}
+function buildLiuHui(G) { // 퍼즐 C: 유휘의 출입상보 — a² 2조각, b² 3조각
+  const { a, b, c } = G, w = a * (b - a) / b;
+  // '유휘 그림' 좌표: b²=[0,b]², a²=[b,b+a]×[0,a], c²=Q,S,U,T
+  const Q = [a, 0], S = [a + b, a], U = [b, a + b], T = [0, b], W = [b, w];
+  const toB = p => G.Fb(p[0], p[1]);
+  const toA = p => G.Fa(p[0] - b, p[1]);
+  const e1 = [b / c, a / c], e2 = V2.rot90(e1);
+  const toC = p => { const d = V2.sub(p, Q); return G.Fc(d[0] * e1[0] + d[1] * e1[1], d[0] * e2[0] + d[1] * e2[1]); };
+  // 두 점 대응(A→A', B→B')으로 정해지는 회전 이동
+  const motion = (A, A2, B, B2) => {
+    const t = Math.atan2(B2[1] - A2[1], B2[0] - A2[0]) - Math.atan2(B[1] - A[1], B[0] - A[0]);
+    return p => V2.add(A2, V2.rot(V2.sub(p, A), t));
+  };
+  const id = p => p;
+  const m1 = motion([0, 0], [b, b], Q, U);           // 삼각형 OQT → 위쪽 빈자리
+  const m2 = motion([a + b, 0], [b, a], S, S);       // 오른쪽 아래 삼각형 → 오른쪽 위 빈자리
+  const raw = [
+    { from: 'b', poly: [[0, 0], Q, T], move: m1, to: toB },
+    { from: 'b', poly: [Q, [b, 0], W], move: m2, to: toB },
+    { from: 'b', poly: [Q, W, [b, b], T], move: id, to: toB },
+    { from: 'a', poly: [[b, 0], [a + b, 0], S, W], move: m2, to: toA },
+    { from: 'a', poly: [W, S, [b, a]], move: id, to: toA },
+  ];
+  return raw.map(r => ({ from: r.from, start: r.poly.map(r.to), target: r.poly.map(p => toC(r.move(p))) }));
+}
+
+function buildPinwheel(G) { // 퍼즐 4: 큰 정사각형(a², 왼쪽) 5조각 + 작은 정사각형(b², 오른쪽) 2조각 → 바람개비 모양
+  const L = G.a, S = G.b, c = G.c; // L > S
+  // 큰 정사각형: 직각 꼭짓점 쪽에서 빗변에 수직인 선, 바깥 모서리의 작은 정사각형(한 변 L−S), 가는 삼각형 두 개
+  const Bq = [L, 0], Bp = [L, L], Ap = [0, L], A = [0, 0];
+  const P = [L - S, L], Rr = [L - S, S], Q = [0, S];
+  const toA = p => G.Fa(p[0], p[1]), toB = p => G.Fb(p[0], p[1]);
+  // c² 안의 바람개비: 네 변마다 직각삼각형(빗변이 정사각형의 변), 가운데 정사각형
+  const Cn = [G.Fc(0, 0), G.Fc(c, 0), G.Fc(c, c), G.Fc(0, c)];
+  const V = Cn.map((P1, k) => {
+    const P2 = Cn[(k + 1) % 4], d = V2.mul(V2.sub(P2, P1), 1 / c), n = V2.rot90(d);
+    return V2.add(P1, V2.add(V2.mul(d, L * L / c), V2.mul(n, L * S / c)));
+  });
+  const Z = k => V2.add(V[k], V2.mul(V2.sub(Cn[k], V[k]), S / L)); // 긴 다리 위, 직각에서 S만큼
+  const C1 = k => Cn[(k + 1) % 4];
+  return [
+    { from: 'a', start: [Bq, Bp, P].map(toA), target: [Cn[0], V[0], C1(0)] },           // 큰 직각삼각형 1
+    { from: 'a', start: [Bq, Q, A].map(toA), target: [Cn[2], V[2], C1(2)] },            // 큰 직각삼각형 2
+    { from: 'a', start: [Ap, P, Rr, Q].map(toA), target: [V[3], V[0], V[1], V[2]] },    // 가운데 작은 정사각형
+    { from: 'a', start: [Bq, P, Rr].map(toA), target: [Cn[1], C1(1), Z(1)] },           // 가는 삼각형 1
+    { from: 'a', start: [Bq, Rr, Q].map(toA), target: [Cn[3], Z(3), C1(3)] },           // 가는 삼각형 2
+    { from: 'b', start: [[0, 0], [S, 0], [S, S]].map(toB), target: [C1(1), V[1], Z(1)] }, // 작은 정사각형 반쪽 1
+    { from: 'b', start: [[0, 0], [S, S], [0, S]].map(toB), target: [C1(3), V[3], Z(3)] }, // 작은 정사각형 반쪽 2
+  ];
+}
+
+/* 조각 하나를 자리 하나에 맞추는 회전각 찾기(꼭짓점을 돌려 가며 비교). 맞지 않으면 null */
+function fitAngle(local, slotLocal) {
+  const n = local.length;
+  if (n !== slotLocal.length) return null;
+  const tol = 1e-6 * (1 + Math.max(...local.map(V2.len)));
+  for (let k = 0; k < n; k++) {
+    const u = V2.sub(local[1], local[0]), v = V2.sub(slotLocal[(k + 1) % n], slotLocal[k]);
+    const t = Math.atan2(v[1], v[0]) - Math.atan2(u[1], u[0]);
+    if (local.every((p, m) => V2.len(V2.sub(V2.rot(p, t), slotLocal[(m + k) % n])) < tol)) return t;
+  }
+  return null;
+}
+
+/* 퍼즐 준비: 조각마다 모양(무게중심 기준), 처음 위치, 맞출 수 있는 자리와 각도 */
+function preparePuzzle(kind, a, b) {
+  const G = boardGeometry(a, b);
+  const raw = kind === 'grid' ? buildGrid(G) : kind === 'perigal' ? buildPerigal(G) : kind === 'pinwheel' ? buildPinwheel(G) : buildLiuHui(G);
+  const slots = raw.map(r => { const P = orient(dedupe(r.target)), C = centroid(P); return { poly: P, c: C, local: P.map(p => V2.sub(p, C)), area: Math.abs(polyArea(P)) }; });
+  const pieces = raw.map((r, i) => {
+    const P = orient(dedupe(r.start)), C = centroid(P);
+    return { id: i, from: r.from, local: P.map(p => V2.sub(p, C)), home: C, area: Math.abs(polyArea(P)), fits: {} };
+  });
+  for (const p of pieces) {
+    const mirrored = p.local.map(q => [-q[0], q[1]]).reverse(); // 뒤집은 모양(꼭짓점 방향을 다시 맞춤)
+    const sides = p.local.map((q, k) => V2.len(V2.sub(p.local[(k + 1) % p.local.length], q)));
+    p.isSquare = p.local.length === 4 && sides.every(x => Math.abs(x - sides[0]) < 1e-6) &&
+      Math.abs(V2.len(V2.sub(p.local[0], p.local[2])) - sides[0] * Math.SQRT2) < 1e-6;
+    slots.forEach((s, j) => {
+      if (Math.abs(p.area - s.area) > 1e-6) return;
+      const t = fitAngle(p.local, s.local);
+      if (t !== null) { p.fits[j] = { t, f: 1 }; return; }
+      const t2 = fitAngle(mirrored, s.local);
+      if (t2 !== null) p.fits[j] = { t: t2, f: -1 };
+    });
+  }
+  return { kind, G, pieces, slots };
+}
+
+// 앱 아이콘: 직각삼각형 얼굴
+const AVATAR = `<svg viewBox="0 0 40 40"><rect width="40" height="40" fill="#14b8a6"/>
+  <path d="M9 31 L9 9 L33 31 Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M9 26 h5 v5" fill="none" stroke="#14b8a6" stroke-width="1.6"/>
+  <circle cx="15" cy="21" r="1.8" fill="#1d2430"/><circle cx="21" cy="25" r="1.8" fill="#1d2430"/>
+  <path d="M14.5 26.5 q2 2.6 4.4 1.4" stroke="#1d2430" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`;
+
+/* ---------- 퍼즐 판 그리기 ---------- */
+const prepared = {};
+function getPrepared(i) {
+  const p = LEVELS[i];
+  if (!prepared[i]) {
+    prepared[i] = preparePuzzle(p.kind, p.a, p.b);
+    prepared[i].colors = { ...COLORS, ...(p.colors || {}) };
+    // 뒤집어야만 맞는 조각이 있는 퍼즐인지([뒤집기] 버튼을 보일지)
+    prepared[i].needsFlip = prepared[i].pieces.some(pc => Object.values(pc.fits).some(f => f.f === -1));
+  }
+  return prepared[i];
+}
+function pieceColor(P, i) {
+  const pc = P.pieces[i];
+  if (P.kind === 'grid') return pc.from === 'a' ? P.colors.gridA : P.colors.gridB;
+  const same = P.pieces.filter(q => q.from === pc.from), list = P.colors[pc.from];
+  return list[same.indexOf(pc) % list.length];
+}
+const pts = arr => arr.map(p => `${+p[0].toFixed(4)},${+p[1].toFixed(4)}`).join(' ');
+function viewBoxOf(G) {
+  const all = [...G.sqA, ...G.sqB, ...G.sqC], xs = all.map(p => p[0]), ys = all.map(p => p[1]);
+  const m = G.c * 0.07;
+  return [Math.min(...xs) - m, Math.min(...ys) - m, Math.max(...xs) - Math.min(...xs) + 2 * m, Math.max(...ys) - Math.min(...ys) + 2 * m];
+}
+function mathLabel(t, x, y, fs) {
+  const body = esc(t).replace(/([abc])/g, '<tspan font-style="italic">$1</tspan>').replace(/²/g, `<tspan dy="${-fs * 0.38}" font-size="${fs * 0.62}">2</tspan>`);
+  return `<text x="${x}" y="${y}" font-size="${fs}" text-anchor="middle" dominant-baseline="middle" font-family="Times New Roman,serif" fill="#5f6b7a">${body}</text>`;
+}
+function boardBase(i) {
+  const p = LEVELS[i], G = getPrepared(i).G, sw = G.c * 0.008, fs = G.c * 0.075;
+  let s = '';
+  for (const sq of [G.sqA, G.sqB, G.sqC]) s += `<polygon points="${pts(sq)}" fill="#f8fafc" stroke="#94a3b8" stroke-width="${sw}" stroke-dasharray="${sw * 4} ${sw * 3}"/>`;
+  if (p.kind === 'grid') {
+    const n = Math.round(G.c);
+    for (let k = 1; k < n; k++) s += `<line x1="${k}" y1="0" x2="${k}" y2="${G.c}" stroke="#e2e8f0" stroke-width="${sw}"/><line x1="0" y1="${k}" x2="${G.c}" y2="${k}" stroke="#e2e8f0" stroke-width="${sw}"/>`;
+  }
+  [G.sqA, G.sqB, G.sqC].forEach((sq, k) => { const c = centroid(sq); if (p.squares[k]) s += mathLabel(p.squares[k], c[0], c[1], fs * 1.3); });
+  s += `<polygon points="${pts([G.P0, G.P1, G.R])}" fill="#e2e8f0" stroke="#475569" stroke-width="${sw * 1.6}" stroke-linejoin="round"/>`;
+  const u1 = V2.mul(V2.sub(G.P0, G.R), 1 / G.a), u2 = V2.mul(V2.sub(G.P1, G.R), 1 / G.b), r = G.c * 0.045;
+  const q1 = V2.add(G.R, V2.mul(u1, r)), q3 = V2.add(G.R, V2.mul(u2, r)), q2 = V2.add(q1, V2.mul(u2, r));
+  s += `<polyline points="${pts([q1, q2, q3])}" fill="none" stroke="#475569" stroke-width="${sw}"/>`;
+  const T = centroid([G.P0, G.P1, G.R]);
+  const sideLab = (A, B, t) => { const m = V2.mul(V2.add(A, B), .5), d = V2.sub(T, m), q = V2.add(m, V2.mul(d, (fs * 0.9) / V2.len(d))); return mathLabel(t, q[0], q[1], fs); };
+  s += sideLab(G.P0, G.R, p.sides.a) + sideLab(G.R, G.P1, p.sides.b) + sideLab(G.P0, G.P1, p.sides.c);
+  return s;
+}
+const pieceTf = (pos, ang, flip = 1) => `translate(${pos[0]},${pos[1]}) rotate(${ang / DEG}) scale(${flip},1)`;
+function pieceSvg(P, i, pos, ang, flip = 1) {
+  return `<g class="piece" data-i="${i}" transform="${pieceTf(pos, ang, flip)}">
+    <polygon points="${pts(P.pieces[i].local)}" fill="${pieceColor(P, i)}" stroke="#fff" stroke-width="${P.G.c * 0.007}" stroke-linejoin="round"/></g>`;
+}
+function staticBoard(i, where = 'start') {
+  const P = getPrepared(i), vb = viewBoxOf(P.G);
+  let s = `<svg viewBox="${vb.join(' ')}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="피타고라스 퍼즐 그림">${boardBase(i)}`;
+  P.pieces.forEach((pc, k) => {
+    if (where === 'start') s += pieceSvg(P, k, pc.home, 0);
+    else if (where === 'solved') s += pieceSvg(P, k, P.slots[k].c, pc.fits[k].t, pc.fits[k].f);
+    else s += pieceSvg(P, k, where.pos[k], where.ang[k], where.flip[k]);
+  });
+  return s + '</svg>';
+}
+
+/* ---------- 레벨 선택 화면 ---------- */
+const totalStars = () => LEVELS.reduce((s, _, i) => s + ((state.best[i] || {}).stars || 0), 0);
+const maxStars = () => LEVELS.length * 3;
+function isLocked(i) { return i > 0 && !state.best[i - 1]; } // 앞 레벨을 깨야 열림
+function starStr(n, max = 3) { return '<span class="st-on">' + '★'.repeat(n) + '</span><span class="st-off">' + '★'.repeat(max - n) + '</span>'; }
+function renderHome() {
+  state.lv = null; state.pz = null;
+  const cards = LEVELS.map((L, i) => {
+    const b = state.best[i], locked = isLocked(i);
+    return `<button class="lvcard ${locked ? 'locked' : ''} ${b ? 'done' : ''}" data-lv="${i}">
+      <div class="lvthumb">${staticBoard(i, b ? 'solved' : 'start')}</div>
+      <div class="lvinfo"><div class="lvt">${esc(L.title)}</div><div class="lvn">${esc(L.name)}</div>
+        <div class="lvs">${locked ? '🔒 앞 레벨을 깨면 열려요' : starStr(b ? b.stars : 0)}</div></div></button>`;
+  }).join('');
+  const t = totalStars(), all = t === maxStars();
+  app.innerHTML = `<div class="home">
+    <div class="homehead"><span class="av">${AVATAR}</span>
+      <div><h1>피타고라스 퍼즐</h1><p>조각을 옮겨 큰 정사각형을 채워라!</p></div>
+      <div class="total"><span class="st-on">★</span> ${t} / ${maxStars()}</div></div>
+    <div class="opts2">
+      <div class="seg"><span>화면</span>
+        <button data-view="solo" class="${!isTV() ? 'on' : ''}">개인 도전</button>
+        <button data-view="tv" class="${isTV() ? 'on' : ''}">TV 시연</button></div>
+    </div>
+    <p class="modehelp">조각을 끌어 옮기고, 톡 쳐서 고른 뒤 <b>아래 ↺ ↻ 버튼</b>으로 ${ROT_STEP}°씩 돌려요. 방향이 대충 맞으면 딱 맞아요. 정사각형 조각은 돌리지 않아도 돼요.
+      ${isTV() ? '<br>TV 시연에서는 별을 받지 않아요.' : ''}</p>
+    <div class="lvlist">${cards}</div>
+    <button class="certbtn ${all ? 'ready' : ''}" id="certBtn">${all ? '🏅 별 ' + maxStars() + '개 달성! 달성 화면 열기' : '⭐ 별 ' + maxStars() + '개를 모두 모아 보자!'}</button>
+    <p class="note">힌트 없이 깨면 ★★★, 힌트 1번이면 ★★, 2번 이상이면 ★ · 새로고침하면 별이 사라져요.</p>
+  </div>`;
+  app.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { state.view = b.dataset.view; document.body.classList.toggle('tv', isTV()); renderHome(); });
+  app.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.lv;
+    if (isLocked(i)) return alertModal(`${LEVELS[i - 1].title}을 먼저 깨 줘!`);
+    startLevel(i);
+  });
+  document.getElementById('certBtn').onclick = () => all ? showCertificate() : alertModal(`지금 별 ${t}개! 별 ${maxStars()}개를 모두 모으면 달성 화면이 열려요.`);
+  window.scrollTo(0, 0);
+}
+
+/* ---------- 게임 화면 ---------- */
+function startLevel(i) {
+  state.lv = i; state.hints = 0;
+  const L = LEVELS[i], manual = state.rotate === 'manual';
+  app.innerHTML = `<div class="game">
+    <div class="ghead">
+      <button class="back" id="backBtn" aria-label="레벨 선택으로">←</button>
+      <div class="t">${esc(L.title)} · ${esc(L.name)}</div>
+      <div class="gstars" id="gstars"></div>
+      <button class="gbtn" id="hintBtn">힌트 💡</button>
+      ${isTV() ? '<button class="gbtn pri" id="autoBtn">자동으로 채우기</button>' : ''}
+      <button class="gbtn" id="resetBtn">처음으로 ↺</button>
+    </div>
+    <div class="board" id="board"></div>
+    <div class="gfoot"><span>조각 <b id="cnt">0</b> / <span id="tot"></span></span><div class="bar"><i id="barI"></i></div>
+      ${manual ? `<div class="rotbar">
+        <button class="rb" id="rotL" aria-label="왼쪽으로 돌리기">↺</button>
+        <button class="rb" id="rotR" aria-label="오른쪽으로 돌리기">↻</button>
+        ${getPrepared(i).needsFlip ? '<button class="rb fl" id="flipB" aria-label="뒤집기">⇋ 뒤집기</button>' : ''}</div>` : ''}</div>
+  </div>`;
+  document.getElementById('backBtn').onclick = askLeave;
+  document.getElementById('hintBtn').onclick = useHint;
+  document.getElementById('resetBtn').onclick = resetPuzzle;
+  const ab = document.getElementById('autoBtn'); if (ab) ab.onclick = autoFill;
+  const rl = document.getElementById('rotL'); if (rl) rl.onclick = () => turnSelected(-ROT_STEP * DEG);
+  const rr = document.getElementById('rotR'); if (rr) rr.onclick = () => turnSelected(ROT_STEP * DEG);
+  const fb = document.getElementById('flipB'); if (fb) fb.onclick = () => flipSelected();
+  setupPuzzle();
+  // 목표 카드는 퍼즐 판 위에만 덮는다(위쪽 버튼은 계속 누를 수 있게)
+  const goal = document.createElement('div');
+  goal.className = 'goal'; goal.id = 'goal';
+  goal.innerHTML = `<div class="gbox"><div class="gl">${esc(L.title)}</div><p>${fmt(L.goal)}</p>
+      ${manual ? `<p class="gsub">조각을 톡 쳐서 고른 뒤 아래 ↺ ↻ 버튼으로 돌려요.${getPrepared(i).needsFlip ? ' ⇋ 뒤집기 버튼도 있어요.' : ''}</p>` : ''}
+      <button class="btn pri" id="goBtn">시작!</button></div>`;
+  document.getElementById('board').appendChild(goal);
+  goal.querySelector('.gbox').addEventListener('pointerdown', () => goal.remove()); // 카드를 톡 치면 바로 닫힘
+  updateStatus();
+  fitViewport();
+}
+function updateStatus() {
+  const pz = state.pz; if (!pz) return;
+  const n = pz.P.pieces.length, k = placedCount();
+  const c = document.getElementById('cnt'); if (c) c.textContent = k;
+  const t = document.getElementById('tot'); if (t) t.textContent = n;
+  const b = document.getElementById('barI'); if (b) b.style.width = (k / n * 100) + '%';
+  const s = document.getElementById('gstars'); if (s) s.innerHTML = isTV() ? '' : starStr(STARS(state.hints));
+}
+
+/* ---------- 퍼즐 판: 여러 손가락 끌기, 돌리기, 맞춤 ---------- */
+function setupPuzzle() {
+  const P = getPrepared(state.lv), n = P.pieces.length;
+  state.pz = {
+    P, done: false, auto: false, sel: -1,
+    pos: P.pieces.map(pc => [...pc.home]), ang: P.pieces.map(() => 0), flip: P.pieces.map(() => 1),
+    inSlot: Array(n).fill(-1), slotBy: Array(n).fill(-1),
+    drags: new Map(), // 손가락(포인터)마다 잡은 조각 — 여러 손가락으로 여러 조각을 동시에 옮기기
+  };
+  const vb = viewBoxOf(P.G);
+  document.getElementById('board').innerHTML = `<svg id="bsvg" viewBox="${vb.join(' ')}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+    <g id="bbase">${boardBase(state.lv)}</g><g id="bflash"></g><g id="bpieces"></g></svg>`;
+  drawPieces();
+  const svg = document.getElementById('bsvg');
+  svg.addEventListener('pointerdown', onDown);
+  svg.addEventListener('pointermove', onMove);
+  svg.addEventListener('pointerup', onUp);
+  svg.addEventListener('pointercancel', onUp);
+  svg.addEventListener('lostpointercapture', onUp); // 브라우저가 손가락을 놓쳤을 때도 내려놓은 것으로
+  svg.addEventListener('contextmenu', e => e.preventDefault()); // 길게 누를 때 메뉴가 뜨지 않게
+}
+function drawPieces() {
+  const { P, pos, ang } = state.pz;
+  document.getElementById('bpieces').innerHTML = P.pieces.map((_, i) => pieceSvg(P, i, pos[i], ang[i], state.pz.flip[i])).join('');
+  drawSel();
+}
+function pieceEl(i) { return document.querySelector(`#bpieces .piece[data-i="${i}"]`); }
+function placePiece(i) {
+  const g = pieceEl(i), pz = state.pz;
+  if (g) g.setAttribute('transform', pieceTf(pz.pos[i], pz.ang[i], pz.flip[i]));
+}
+/* '직접 돌리기'에서 고른 조각을 테두리로 표시하고, 아래 ↺ ↻ 버튼을 켜고 끈다 */
+function drawSel() {
+  const pz = state.pz; if (!pz) return;
+  if (pz.sel >= 0 && (pz.inSlot[pz.sel] >= 0 || pz.done)) pz.sel = -1;
+  document.querySelectorAll('#bpieces .piece.sel').forEach(g => g.classList.remove('sel'));
+  const g = pz.sel >= 0 ? pieceEl(pz.sel) : null;
+  if (g) { g.classList.add('sel'); document.getElementById('bpieces').appendChild(g); }
+  document.querySelectorAll('.rotbar .rb').forEach(b => b.disabled = !g);
+}
+async function turnSelected(d) {
+  const pz = state.pz; if (!pz || pz.sel < 0 || pz.done) return;
+  const i = pz.sel;
+  await animate(i, pz.pos[i], pz.ang[i] + d, 140);
+  trySnap(i);
+}
+async function flipSelected() {
+  const pz = state.pz; if (!pz || pz.sel < 0 || pz.done) return;
+  const i = pz.sel;
+  await animate(i, pz.pos[i], pz.ang[i], 220, -pz.flip[i]);
+  trySnap(i);
+}
+function svgPoint(e) {
+  const svg = document.getElementById('bsvg'), pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const q = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return [q.x, q.y];
+}
+function onDown(e) {
+  const pz = state.pz;
+  if (!pz || pz.done || pz.auto) return;
+  const goal = document.getElementById('goal'); if (goal) goal.remove(); // 목표 카드가 남아 있어도 조각은 잡히게
+  const p = svgPoint(e);
+  const g = e.target.closest('.piece'); if (!g) return;
+  const i = +g.dataset.i;
+  for (const [id, d] of pz.drags) if (performance.now() - d.last > 1500) pz.drags.delete(id); // 손가락을 뗀 신호를 놓쳐 남은 잡기 정리
+  if ([...pz.drags.values()].some(d => d.i === i)) return; // 지금 다른 손가락이 잡고 있는 조각
+  e.preventDefault();
+  if (pz.inSlot[i] >= 0) { pz.slotBy[pz.inSlot[i]] = -1; pz.inSlot[i] = -1; updateStatus(); } // 자리에서 빼기
+  pz.drags.set(e.pointerId, { type: 'move', i, off: V2.sub(pz.pos[i], p), sx: e.clientX, sy: e.clientY, t0: performance.now(), last: performance.now(), moved: false });
+  document.getElementById('bpieces').appendChild(g);
+  g.classList.add('drag');
+  if (state.rotate === 'manual') { pz.sel = i; drawSel(); }
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+}
+function onMove(e) {
+  const pz = state.pz; if (!pz) return;
+  const d = pz.drags.get(e.pointerId); if (!d) return;
+  e.preventDefault();
+  d.last = performance.now();
+  const p = svgPoint(e);
+  if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > 6) d.moved = true;
+  const vb = viewBoxOf(pz.P.G), q = V2.add(p, d.off);
+  pz.pos[d.i] = [Math.min(Math.max(q[0], vb[0]), vb[0] + vb[2]), Math.min(Math.max(q[1], vb[1]), vb[1] + vb[3])];
+  placePiece(d.i);
+}
+function onUp(e) {
+  const pz = state.pz; if (!pz) return;
+  const d = pz.drags.get(e.pointerId); if (!d) return;
+  pz.drags.delete(e.pointerId);
+  const g = pieceEl(d.i); if (g) g.classList.remove('drag');
+  if (!d.moved && state.rotate === 'manual') { pz.sel = d.i; drawSel(); return; } // 톡 치기 = 고르기
+  trySnap(d.i);
+}
+function angleDiff(a, b) { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); }
+/* 가장 가까운 빈자리 중 이 조각이 맞는 곳. '직접 돌리기'는 방향도 맞아야 함 */
+function trySnap(i) {
+  const pz = state.pz, pc = pz.P.pieces[i], tol = SNAP * Math.sqrt(pc.area);
+  let best = -1, bd = Infinity;
+  for (const j in pc.fits) {
+    if (pz.slotBy[j] >= 0) continue;
+    const f = pc.fits[j];
+    if (state.rotate === 'manual' && !pc.isSquare && (f.f !== pz.flip[i] || angleDiff(pz.ang[i], f.t) > ROT_TOL * DEG)) continue;
+    const dd = V2.len(V2.sub(pz.pos[i], pz.P.slots[j].c));
+    if (dd < bd) { bd = dd; best = +j; }
+  }
+  if (best >= 0 && bd < tol) return snapTo(i, best);
+}
+function animate(i, toPos, toAng, ms, toFlip) {
+  const pz = state.pz, from = [...pz.pos[i]], a0 = pz.ang[i], f0 = pz.flip[i], f1 = toFlip === undefined ? f0 : toFlip;
+  let a1 = toAng;
+  while (a1 - a0 > Math.PI) a1 -= 2 * Math.PI; // 가까운 쪽으로 돌기
+  while (a1 - a0 < -Math.PI) a1 += 2 * Math.PI;
+  const t0 = performance.now();
+  return new Promise(res => {
+    const step = now => {
+      if (state.pz !== pz) return res();
+      const t = Math.min(1, (now - t0) / ms), k = 1 - Math.pow(1 - t, 3);
+      pz.pos[i] = V2.add(from, V2.mul(V2.sub(toPos, from), k)); pz.ang[i] = a0 + (a1 - a0) * k;
+      pz.flip[i] = f0 + (f1 - f0) * k; // 뒤집을 때는 가로로 접히듯 보임
+      placePiece(i);
+      if (t < 1) requestAnimationFrame(step); else { pz.ang[i] = a1; pz.flip[i] = f1; placePiece(i); res(); }
+    };
+    requestAnimationFrame(step);
+  });
+}
+async function snapTo(i, j, ms = 180) {
+  const pz = state.pz;
+  pz.inSlot[i] = j; pz.slotBy[j] = i;
+  if (pz.sel === i) { pz.sel = -1; drawSel(); }
+  const f = pz.P.pieces[i].fits[j];
+  await animate(i, pz.P.slots[j].c, pz.P.pieces[i].isSquare && state.rotate === 'manual' ? nearestSquareAngle(pz.ang[i], f.t) : f.t, ms, f.f);
+  updateStatus();
+  if (!pz.auto && placedCount() === pz.P.pieces.length) levelClear();
+}
+// 정사각형은 90°마다 같은 모양이므로, 지금 방향에서 가장 가까운 맞는 각도로
+function nearestSquareAngle(a, t) { return t + Math.round((a - t) / (Math.PI / 2)) * (Math.PI / 2); }
+const placedCount = () => state.pz ? state.pz.inSlot.filter(j => j >= 0).length : 0;
+function freeSlotFor(i) {
+  const pz = state.pz, fits = pz.P.pieces[i].fits;
+  if (i in fits && pz.slotBy[i] < 0) return i; // 원래 자리가 비었으면 거기로
+  for (const k in fits) if (pz.slotBy[k] < 0) return +k;
+  return -1;
+}
+function resetPuzzle() {
+  const pz = state.pz; if (!pz || pz.done || pz.auto) return;
+  pz.pos = pz.P.pieces.map(pc => [...pc.home]); pz.ang = pz.P.pieces.map(() => 0); pz.flip = pz.P.pieces.map(() => 1);
+  pz.inSlot.fill(-1); pz.slotBy.fill(-1); pz.drags.clear(); pz.sel = -1;
+  drawPieces(); updateStatus();
+}
+/* 힌트: 빈자리 하나를 반짝이고, 거기 맞는 조각을 깜박이게. '직접 돌리기'면 그 조각의 방향도 맞춰 줌. 별이 하나 줄어듦 */
+async function useHint() {
+  const pz = state.pz; if (!pz || pz.done || pz.auto) return;
+  const goal = document.getElementById('goal'); if (goal) goal.remove();
+  for (let i = 0; i < pz.P.pieces.length; i++) {
+    if (pz.inSlot[i] >= 0) continue;
+    const j = freeSlotFor(i); if (j < 0) continue;
+    if (!isTV()) { state.hints++; updateStatus(); }
+    const c = pz.P.G.c;
+    document.getElementById('bflash').innerHTML = `<polygon class="flash" points="${pts(pz.P.slots[j].poly)}" fill="#fde047" stroke="#eab308" stroke-width="${c * 0.012}"/>`;
+    const g = pieceEl(i);
+    if (g) { document.getElementById('bpieces').appendChild(g); g.classList.remove('nudge'); void g.getBBox(); g.classList.add('nudge'); }
+    if (state.rotate === 'manual') { pz.sel = i; drawSel(); await animate(i, pz.pos[i], pz.P.pieces[i].fits[j].t, 400, pz.P.pieces[i].fits[j].f); }
+    setTimeout(() => { const f = document.getElementById('bflash'); if (f) f.innerHTML = ''; if (g) g.classList.remove('nudge'); }, 2600);
+    return;
+  }
+}
+/* TV 시연: 남은 조각을 차례로 날려 채우기 */
+async function autoFill() {
+  const pz = state.pz; if (!pz || pz.done || pz.auto) return;
+  const goal = document.getElementById('goal'); if (goal) goal.remove();
+  pz.auto = true; pz.sel = -1; drawSel();
+  const n = pz.P.pieces.length, dt = n > 10 ? 150 : 550;
+  for (let i = 0; i < n; i++) {
+    if (state.pz !== pz) return;
+    if (pz.inSlot[i] >= 0) continue;
+    const j = freeSlotFor(i); if (j < 0) continue;
+    document.getElementById('bpieces').appendChild(pieceEl(i));
+    await snapTo(i, j, dt);
+  }
+  pz.auto = false;
+  if (placedCount() === n) levelClear();
+}
+
+/* ---------- 레벨 클리어: 별 + 식 완성 ---------- */
+async function levelClear() {
+  const pz = state.pz; if (!pz || pz.done) return;
+  pz.done = true; pz.sel = -1; drawSel();
+  document.getElementById('board').classList.add('solved');
+  const L = LEVELS[state.lv], stars = STARS(state.hints);
+  await sleep(350);
+  const ov = document.createElement('div');
+  ov.className = 'clear';
+  ov.innerHTML = `<div class="cbox">
+    <div class="ctitle">🎉 ${esc(L.title)} 클리어!</div>
+    <div class="cstars">${isTV() ? '<span class="tvnote">TV 시연</span>' : [0, 1, 2].map(k => `<span class="cs ${k < stars ? 'on' : ''}" style="animation-delay:${k * .25}s">★</span>`).join('')}</div>
+    <div id="quiz"></div></div>`;
+  document.querySelector('.game').appendChild(ov);
+  runQuiz(0);
+}
+function runQuiz(k) {
+  const L = LEVELS[state.lv], box = document.getElementById('quiz'); if (!box) return;
+  if (k >= L.quiz.length) return showClearEnd();
+  const Q = L.quiz[k], [pre, post] = Q.template.split('□');
+  box.innerHTML = `<p class="qq">${fmt(Q.q)}</p>
+    <div class="qt">${fmt(pre)}<span class="qbox">?</span>${fmt(post || '')}</div>
+    <div class="qopts">${Q.options.map((o, i) => `<button class="qopt" data-o="${i}">${fmt(o)}</button>`).join('')}</div>`;
+  box.querySelectorAll('[data-o]').forEach(b => b.onclick = () => {
+    if (+b.dataset.o === Q.answer) {
+      box.querySelector('.qbox').innerHTML = fmt(Q.options[Q.answer]);
+      box.querySelector('.qbox').classList.add('ok');
+      box.querySelectorAll('.qopt').forEach(x => x.disabled = true);
+      b.classList.add('ok');
+      setTimeout(() => runQuiz(k + 1), 750);
+    } else { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake', 'no'); }
+  });
+}
+function showClearEnd() {
+  const i = state.lv, L = LEVELS[i], stars = STARS(state.hints);
+  if (!isTV()) {
+    const prev = state.best[i];
+    if (!prev || stars > prev.stars) state.best[i] = { stars, rotate: state.rotate };
+  }
+  const next = i + 1 < LEVELS.length ? i + 1 : -1, all = totalStars() === maxStars();
+  document.getElementById('quiz').innerHTML = `<div class="cformula">${fmt(L.formula)}</div>
+    ${!isTV() && stars < 3 ? '<p class="cmsg">힌트 없이 다시 도전하면 ★★★!</p>' : ''}
+    <div class="btns">
+      <button class="btn" data-again>다시 하기</button>
+      <button class="btn" data-home>레벨 선택</button>
+      ${all && !isTV() ? '<button class="btn pri" data-cert>🏅 달성 화면</button>' : next >= 0 ? `<button class="btn pri" data-next>${esc(LEVELS[next].title)} →</button>` : ''}
+    </div>`;
+  const q = document.getElementById('quiz');
+  q.querySelector('[data-again]').onclick = () => startLevel(i);
+  q.querySelector('[data-home]').onclick = renderHome;
+  const n = q.querySelector('[data-next]'); if (n) n.onclick = () => startLevel(next);
+  const c = q.querySelector('[data-cert]'); if (c) c.onclick = () => { renderHome(); showCertificate(); };
+}
+
+/* ---------- 달성 화면 ----------
+   앱은 아무것도 저장하지 않으므로, 학생이 이 화면을 선생님께 보여 드린다.
+   다른 학생 화면을 캡처해 보여 주지 못하도록 지금 날짜·시각(초까지, 계속 움직임)을 함께 띄운다. */
+let clockTimer = null;
+function nowText() {
+  const d = new Date(), z = n => String(n).padStart(2, '0'), W = '일월화수목금토';
+  return `${d.getFullYear()}. ${z(d.getMonth() + 1)}. ${z(d.getDate())}. (${W[d.getDay()]}) ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+}
+function showCertificate() {
+  const rows = LEVELS.map((L, i) => `<div class="crow"><span>${esc(L.title)} · ${esc(L.name)}</span>
+    <span>${starStr((state.best[i] || {}).stars || 0)}</span></div>`).join('');
+  const ov = document.createElement('div');
+  ov.className = 'cert';
+  ov.innerHTML = `<div class="certcard">
+    <div class="cbadge">🏅</div>
+    <div class="cname">피타고라스 퍼즐 마스터!</div>
+    <div class="cdesc">별 ${maxStars()}개를 모두 모았어요</div>
+    <div class="crows">${rows}</div>
+    <div class="clock" id="clock">${nowText()}</div>
+    <p class="cnote">선생님께 이 화면을 보여 드려요.</p>
+    <button class="btn" id="certClose">닫기</button></div>`;
+  document.body.appendChild(ov);
+  clearInterval(clockTimer);
+  clockTimer = setInterval(() => { const c = document.getElementById('clock'); if (c) c.textContent = nowText(); else clearInterval(clockTimer); }, 1000);
+  document.getElementById('certClose').onclick = () => { clearInterval(clockTimer); ov.remove(); };
+}
+
+/* ---------- 팝업 ---------- */
+function modal(html, bind) {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `<div class="modal">${html}</div>`;
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  bind(ov, () => ov.remove());
+}
+function alertModal(t) {
+  modal(`<p style="margin:4px 0 14px">${esc(t)}</p><div class="btns"><button class="btn pri" data-x>확인</button></div>`,
+    (ov, close) => ov.querySelector('[data-x]').onclick = close);
+}
+function askLeave() {
+  if (!state.pz || state.pz.done || placedCount() === 0) return renderHome();
+  modal(`<h2>레벨 선택으로 나갈까요?</h2><p>지금 맞추던 퍼즐은 처음부터 다시 해야 해요.</p>
+    <div class="btns"><button class="btn" data-x>계속하기</button><button class="btn pri" data-go>나가기</button></div>`,
+    (ov, close) => { ov.querySelector('[data-x]').onclick = close; ov.querySelector('[data-go]').onclick = () => { close(); renderHome(); }; });
+}
+
+/* 화면 높이 맞추기(아이폰·태블릿 주소창 대응) */
+function fitViewport() {
+  const vv = window.visualViewport;
+  document.documentElement.style.setProperty('--app-h', (vv ? vv.height : window.innerHeight) + 'px');
+}
+if (window.visualViewport) visualViewport.addEventListener('resize', fitViewport);
+window.addEventListener('resize', fitViewport);
+
+renderHome();
+</script>
+</body>
+</html>
