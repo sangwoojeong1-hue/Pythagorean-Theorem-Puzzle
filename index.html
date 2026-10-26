@@ -245,6 +245,15 @@ svg text{font-weight:400} /* 그림 속 A, B, C는 교과서처럼 보통 굵기
 .ghead .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:18px}
 .ghead .tag{font-size:12px;background:#ef4444;color:#fff;border-radius:999px;padding:1px 8px;vertical-align:2px}
 .gstars{font-size:22px;letter-spacing:1px}
+.gtime{font-family:var(--font-head);font-size:20px;background:#fff;border-radius:12px;padding:4px 10px;color:#334155;font-variant-numeric:tabular-nums;white-space:nowrap}
+.gtime.run{color:#1d4ed8}
+.lvtime{font-family:var(--font-head);font-size:15px;color:#1d4ed8;margin-top:2px}
+.ctime{font-family:var(--font-head);font-size:24px;color:#1d4ed8;margin:-2px 0 6px}
+.newrec{display:inline-block;background:#ef4444;color:#fff;font-size:14px;border-radius:999px;padding:2px 8px;vertical-align:middle;animation:newpop .5s ease-out}
+@keyframes newpop{from{transform:scale(.3)}to{transform:scale(1)}}
+.crow .ct{font-variant-numeric:tabular-nums;min-width:58px;display:inline-block;text-align:right}
+.ctotal{display:flex;justify-content:space-between;align-items:center;background:#eff6ff;border-radius:12px;padding:8px 12px;margin:6px 0 10px;font-family:var(--font-head);font-size:18px;color:#1d4ed8}
+.ctotal b{font-size:30px}
 .gbtn{border:0;background:#ffffffcc;border-radius:10px;padding:9px 11px;font-family:var(--font-head);font-size:15px;white-space:nowrap}
 .gbtn.pri{background:var(--accent);color:#fff}
 .board{flex:1;min-height:0;position:relative;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -260,7 +269,7 @@ svg text{font-weight:400} /* 그림 속 A, B, C는 교과서처럼 보통 굵기
 /* '직접 돌리기'에서 고른 조각 */
 .piece.sel polygon{stroke:#1d2430;stroke-width:4px;vector-effect:non-scaling-stroke;stroke-dasharray:7 4;animation:selmarch .8s linear infinite}
 @keyframes selmarch{to{stroke-dashoffset:-22}}
-@media (max-width:520px){.gfoot:has(.rotbar) .bar{display:none}}
+@media (max-width:520px){.gfoot:has(.rotbar) .bar{display:none}.ghead .t{display:none}}
 .rotbar{display:flex;gap:8px;flex:none}
 .rb{border:0;border-radius:14px;background:var(--accent);color:#fff;font-family:var(--font-head);font-size:28px;min-width:64px;height:56px;padding:0 14px}
 .rb.fl{font-size:19px;background:#8b5cf6}
@@ -301,7 +310,7 @@ svg text{font-weight:400} /* 그림 속 A, B, C는 교과서처럼 보통 굵기
 .cmsg{margin:2px 0 6px;color:var(--muted);font-size:16px}
 .cbox .btns{flex-wrap:wrap}
 
-/* 달성 화면 */
+/* 기록 화면 */
 .nm{width:100%;font:inherit;font-size:20px;padding:10px 12px;border:2px solid #c9d6e4;border-radius:12px;margin:6px 0 4px}
 .cert{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;
   background:radial-gradient(circle at 30% 20%,#fde68a,#f59e0b 45%,#ea580c);}
@@ -420,8 +429,9 @@ const LEVELS = [
 const state = {
   view: 'solo',        // 'solo' 개인 | 'tv' TV 시연
   rotate: 'manual',    // 조각은 학생이 ↺ ↻ 버튼으로 직접 돌림 (자동 회전 모드는 2026-10-26에 없앰)
-  best: {},            // 레벨별 최고 기록 { stars, rotate }
+  best: {},            // 레벨별 최고 기록 { stars, time } — 별과 시간은 각각 가장 좋은 기록
   lv: null, pz: null, hints: 0,
+  t0: 0, tick: null,   // 이번 판 시작 시각(목표 카드를 닫는 순간부터 잼), 화면 시계
 };
 const app = document.getElementById('app');
 const isTV = () => state.view === 'tv';
@@ -701,20 +711,39 @@ function staticBoard(i, where = 'start') {
 }
 
 /* ---------- 레벨 선택 화면 ---------- */
+/* ---------- 시간 기록 ----------
+   목표 카드를 닫는 순간(또는 바로 조각을 잡는 순간)부터 다 채울 때까지 잰다. 식 완성 문제 시간은 빼고, [처음으로]를 눌러도 시간은 계속 흐른다. */
+function fmtTime(ms, tenth = true) {
+  const t = Math.max(0, ms) / 1000, m = Math.floor(t / 60), sec = t - m * 60;
+  return tenth ? `${m}:${sec.toFixed(1).padStart(4, '0')}` : `${m}:${String(Math.floor(sec)).padStart(2, '0')}`;
+}
+const allCleared = () => LEVELS.every((_, i) => state.best[i] && state.best[i].time != null);
+const totalTime = () => LEVELS.reduce((s, _, i) => s + ((state.best[i] || {}).time || 0), 0);
+function startTimer() {
+  if (state.t0 || isTV() || !state.pz || state.pz.done) return;
+  state.t0 = performance.now();
+  const el = document.getElementById('gtime');
+  clearInterval(state.tick);
+  state.tick = setInterval(() => { const e = document.getElementById('gtime'); if (!e || !state.t0) return clearInterval(state.tick); e.textContent = '⏱ ' + fmtTime(performance.now() - state.t0, false); }, 250);
+  if (el) el.classList.add('run');
+}
+function stopTimer() { clearInterval(state.tick); const ms = state.t0 ? performance.now() - state.t0 : null; state.t0 = 0; return ms; }
+function closeGoal() { const g = document.getElementById('goal'); if (g) g.remove(); startTimer(); }
 const totalStars = () => LEVELS.reduce((s, _, i) => s + ((state.best[i] || {}).stars || 0), 0);
 const maxStars = () => LEVELS.length * 3;
 function isLocked(i) { return i > 0 && !state.best[i - 1]; } // 앞 레벨을 깨야 열림
 function starStr(n, max = 3) { return '<span class="st-on">' + '★'.repeat(n) + '</span><span class="st-off">' + '★'.repeat(max - n) + '</span>'; }
 function renderHome() {
-  state.lv = null; state.pz = null;
+  stopTimer(); state.lv = null; state.pz = null;
   const cards = LEVELS.map((L, i) => {
     const b = state.best[i], locked = isLocked(i);
     return `<button class="lvcard ${locked ? 'locked' : ''} ${b ? 'done' : ''}" data-lv="${i}">
       <div class="lvthumb">${staticBoard(i, b ? 'solved' : 'start')}</div>
       <div class="lvinfo"><div class="lvt">${esc(L.title)}</div><div class="lvn">${esc(L.name)}</div>
-        <div class="lvs">${locked ? '🔒 앞 레벨을 깨면 열려요' : starStr(b ? b.stars : 0)}</div></div></button>`;
+        <div class="lvs">${locked ? '🔒 앞 레벨을 깨면 열려요' : starStr(b ? b.stars : 0)}</div>
+        ${b && b.time != null ? `<div class="lvtime">⏱ ${fmtTime(b.time)}</div>` : ''}</div></button>`;
   }).join('');
-  const t = totalStars(), all = t === maxStars();
+  const t = totalStars(), all = t === maxStars(), done = allCleared();
   app.innerHTML = `<div class="home">
     <div class="homehead"><span class="av">${AVATAR}</span>
       <div><h1>피타고라스 퍼즐</h1><p>조각을 옮겨 큰 정사각형을 채워라!</p></div>
@@ -727,8 +756,10 @@ function renderHome() {
     <p class="modehelp">조각을 끌어 옮기고, 톡 쳐서 고른 뒤 <b>아래 ↺ ↻ 버튼</b>으로 ${ROT_STEP}°씩 돌려요. 방향이 대충 맞으면 딱 맞아요. 정사각형 조각은 돌리지 않아도 돼요.
       ${isTV() ? '<br>TV 시연에서는 별을 받지 않아요.' : ''}</p>
     <div class="lvlist">${cards}</div>
-    <button class="certbtn ${all ? 'ready' : ''}" id="certBtn">${all ? '🏅 별 ' + maxStars() + '개 달성! 달성 화면 열기' : '⭐ 별 ' + maxStars() + '개를 모두 모아 보자!'}</button>
-    <p class="note">힌트 없이 깨면 ★★★, 힌트 1번이면 ★★, 2번 이상이면 ★ · 새로고침하면 별이 사라져요.</p>
+    ${isTV() ? '' : `<button class="certbtn ${done ? 'ready' : ''}" id="certBtn">${done
+      ? `🏁 최종 기록 ⏱ ${fmtTime(totalTime())} · ★ ${t}/${maxStars()} — 기록 화면 열기`
+      : `⏱ 레벨 ${LEVELS.length}개를 모두 깨면 최종 기록이 나와요!`}</button>`}
+    <p class="note">힌트 없이 깨면 ★★★, 힌트 1번이면 ★★, 2번 이상이면 ★ · 최종 기록 = 레벨마다 가장 빠른 기록의 합 · 새로고침하면 기록이 사라져요.</p>
   </div>`;
   app.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { state.view = b.dataset.view; document.body.classList.toggle('tv', isTV()); renderHome(); });
   app.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => {
@@ -736,18 +767,20 @@ function renderHome() {
     if (isLocked(i)) return alertModal(`${LEVELS[i - 1].title}을 먼저 깨 줘!`);
     startLevel(i);
   });
-  document.getElementById('certBtn').onclick = () => all ? showCertificate() : alertModal(`지금 별 ${t}개! 별 ${maxStars()}개를 모두 모으면 달성 화면이 열려요.`);
+  const cb = document.getElementById('certBtn');
+  if (cb) cb.onclick = () => done ? showCertificate() : alertModal(`레벨 ${LEVELS.length}개를 모두 깨면 레벨별 시간과 최종 기록이 나와요.`);
   window.scrollTo(0, 0);
 }
 
 /* ---------- 게임 화면 ---------- */
 function startLevel(i) {
-  state.lv = i; state.hints = 0;
+  stopTimer(); state.lv = i; state.hints = 0;
   const L = LEVELS[i], manual = state.rotate === 'manual';
   app.innerHTML = `<div class="game">
     <div class="ghead">
       <button class="back" id="backBtn" aria-label="레벨 선택으로">←</button>
       <div class="t">${esc(L.title)} · ${esc(L.name)}</div>
+      ${isTV() ? '' : '<div class="gtime" id="gtime">⏱ 0:00</div>'}
       <div class="gstars" id="gstars"></div>
       <button class="gbtn" id="hintBtn">힌트 💡</button>
       ${isTV() ? '<button class="gbtn pri" id="autoBtn">자동으로 채우기</button>' : ''}
@@ -775,7 +808,7 @@ function startLevel(i) {
       ${manual ? `<p class="gsub">조각을 톡 쳐서 고른 뒤 아래 ↺ ↻ 버튼으로 돌려요.${getPrepared(i).needsFlip ? ' ⇋ 뒤집기 버튼도 있어요.' : ''}</p>` : ''}
       <button class="btn pri" id="goBtn">시작!</button></div>`;
   document.getElementById('board').appendChild(goal);
-  goal.querySelector('.gbox').addEventListener('pointerdown', () => goal.remove()); // 카드를 톡 치면 바로 닫힘
+  goal.querySelector('.gbox').addEventListener('pointerdown', closeGoal); // 카드를 톡 치면 바로 닫히고 시간이 흐르기 시작
   updateStatus();
   fitViewport();
 }
@@ -849,7 +882,7 @@ function svgPoint(e) {
 function onDown(e) {
   const pz = state.pz;
   if (!pz || pz.done || pz.auto) return;
-  const goal = document.getElementById('goal'); if (goal) goal.remove(); // 목표 카드가 남아 있어도 조각은 잡히게
+  closeGoal(); // 목표 카드가 남아 있어도 조각은 잡히게(시간도 이때부터)
   const p = svgPoint(e);
   const g = e.target.closest('.piece'); if (!g) return;
   const i = +g.dataset.i;
@@ -941,7 +974,7 @@ function resetPuzzle() {
 /* 힌트: 빈자리 하나를 반짝이고, 거기 맞는 조각을 깜박이게. '직접 돌리기'면 그 조각의 방향도 맞춰 줌. 별이 하나 줄어듦 */
 async function useHint() {
   const pz = state.pz; if (!pz || pz.done || pz.auto) return;
-  const goal = document.getElementById('goal'); if (goal) goal.remove();
+  closeGoal();
   for (let i = 0; i < pz.P.pieces.length; i++) {
     if (pz.inSlot[i] >= 0) continue;
     const j = freeSlotFor(i); if (j < 0) continue;
@@ -975,8 +1008,10 @@ async function autoFill() {
 /* ---------- 레벨 클리어: 별 + 식 완성 ---------- */
 async function levelClear() {
   const pz = state.pz; if (!pz || pz.done) return;
+  const ms = stopTimer(); state.lastTime = ms;
   pz.done = true; pz.sel = -1; drawSel();
   document.getElementById('board').classList.add('solved');
+  const gt = document.getElementById('gtime'); if (gt && ms != null) { gt.textContent = '⏱ ' + fmtTime(ms); gt.classList.remove('run'); }
   const L = LEVELS[state.lv], stars = STARS(state.hints);
   await sleep(350);
   const ov = document.createElement('div');
@@ -984,6 +1019,7 @@ async function levelClear() {
   ov.innerHTML = `<div class="cbox">
     <div class="ctitle">🎉 ${esc(L.title)} 클리어!</div>
     <div class="cstars">${isTV() ? '<span class="tvnote">TV 시연</span>' : [0, 1, 2].map(k => `<span class="cs ${k < stars ? 'on' : ''}" style="animation-delay:${k * .25}s">★</span>`).join('')}</div>
+    ${!isTV() && ms != null ? `<div class="ctime">⏱ ${fmtTime(ms)}${(() => { const b = state.best[state.lv]; return b && b.time != null && ms < b.time ? ' <span class="newrec">최고 기록!</span>' : ''; })()}</div>` : ''}
     <div id="quiz"></div></div>`;
   document.querySelector('.game').appendChild(ov);
   runQuiz(0);
@@ -1008,16 +1044,19 @@ function runQuiz(k) {
 function showClearEnd() {
   const i = state.lv, L = LEVELS[i], stars = STARS(state.hints);
   if (!isTV()) {
-    const prev = state.best[i];
-    if (!prev || stars > prev.stars) state.best[i] = { stars, rotate: state.rotate };
+    const prev = state.best[i] || {}, ms = state.lastTime;
+    state.best[i] = {
+      stars: Math.max(prev.stars || 0, stars),
+      time: ms == null ? prev.time : prev.time == null ? ms : Math.min(prev.time, ms),
+    };
   }
-  const next = i + 1 < LEVELS.length ? i + 1 : -1, all = totalStars() === maxStars();
+  const next = i + 1 < LEVELS.length ? i + 1 : -1, all = allCleared();
   document.getElementById('quiz').innerHTML = `<div class="cformula">${fmt(L.formula)}</div>
     ${!isTV() && stars < 3 ? '<p class="cmsg">힌트 없이 다시 도전하면 ★★★!</p>' : ''}
     <div class="btns">
       <button class="btn" data-again>다시 하기</button>
       <button class="btn" data-home>레벨 선택</button>
-      ${all && !isTV() ? '<button class="btn pri" data-cert>🏅 달성 화면</button>' : next >= 0 ? `<button class="btn pri" data-next>${esc(LEVELS[next].title)} →</button>` : ''}
+      ${all && !isTV() && next < 0 ? '<button class="btn pri" data-cert>🏁 최종 기록</button>' : next >= 0 ? `<button class="btn pri" data-next>${esc(LEVELS[next].title)} →</button>` : ''}
     </div>`;
   const q = document.getElementById('quiz');
   q.querySelector('[data-again]').onclick = () => startLevel(i);
@@ -1026,7 +1065,7 @@ function showClearEnd() {
   const c = q.querySelector('[data-cert]'); if (c) c.onclick = () => { renderHome(); showCertificate(); };
 }
 
-/* ---------- 달성 화면 ----------
+/* ---------- 기록 화면(네 레벨을 모두 깨면 열림) ----------
    앱은 아무것도 저장하지 않으므로, 학생이 이 화면을 선생님께 보여 드린다.
    다른 학생 화면을 캡처해 보여 주지 못하도록 지금 날짜·시각(초까지, 계속 움직임)을 함께 띄운다. */
 let clockTimer = null;
@@ -1035,15 +1074,18 @@ function nowText() {
   return `${d.getFullYear()}. ${z(d.getMonth() + 1)}. ${z(d.getDate())}. (${W[d.getDay()]}) ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
 }
 function showCertificate() {
-  const rows = LEVELS.map((L, i) => `<div class="crow"><span>${esc(L.title)} · ${esc(L.name)}</span>
-    <span>${starStr((state.best[i] || {}).stars || 0)}</span></div>`).join('');
+  const rows = LEVELS.map((L, i) => { const b = state.best[i] || {};
+    return `<div class="crow"><span>${esc(L.title)} · ${esc(L.name)}</span>
+    <span>${starStr(b.stars || 0)} <b class="ct">${b.time != null ? fmtTime(b.time) : '-'}</b></span></div>`; }).join('');
+  const all = totalStars() === maxStars();
   const ov = document.createElement('div');
   ov.className = 'cert';
   ov.innerHTML = `<div class="certcard">
-    <div class="cbadge">🏅</div>
-    <div class="cname">피타고라스 퍼즐 마스터!</div>
-    <div class="cdesc">별 ${maxStars()}개를 모두 모았어요</div>
+    <div class="cbadge">${all ? '🏅' : '🏁'}</div>
+    <div class="cname">${all ? '피타고라스 퍼즐 마스터!' : '피타고라스 퍼즐 완주!'}</div>
+    <div class="cdesc">${all ? `별 ${maxStars()}개를 모두 모았어요` : `별 ${totalStars()} / ${maxStars()}`}</div>
     <div class="crows">${rows}</div>
+    <div class="ctotal"><span>최종 기록</span><b>${fmtTime(totalTime())}</b></div>
     <div class="clock" id="clock">${nowText()}</div>
     <p class="cnote">선생님께 이 화면을 보여 드려요.</p>
     <button class="btn" id="certClose">닫기</button></div>`;
